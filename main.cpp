@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
 
     ssize_t bytes_read = process_vm_readv(pid_int, &local_object, 1, &remote_object, 1, 0);
     if(bytes_read == -1){
-        std::perror("Unable to read int virtual memory space : ");
+        std::perror("Unable to read int virtual memory space ");
         return 1;
     }
 
