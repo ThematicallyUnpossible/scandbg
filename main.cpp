@@ -89,35 +89,50 @@ int main(int argc, char* argv[])
         break;
     }
 
-    for( auto region : target_mem_available )
+    constexpr std::size_t buffer_size = 4069;
+    std::vector<char> local_buffer(buffer_size);
+
+    for( const auto& region : target_mem_available )
     {
         for (unsigned long long current_addr = region.m_start_address;
              current_addr <= region.m_end_address - sizeof(int);
-             current_addr += sizeof(int))
-        {
-            int local_int_buffer = 0;
+             current_addr += sizeof(int)){
+
+            std::size_t current_buffer_size = buffer_size;
+            if (current_addr + buffer_size > region.m_end_address) {
+                current_buffer_size = region.m_end_address - current_addr;
+            }
 
             struct iovec local_region {
-                .iov_base = &local_int_buffer,
-                .iov_len = sizeof(local_int_buffer)
+                .iov_base = local_buffer.data(),
+                    .iov_len = sizeof(current_buffer_size)
             };
 
             struct iovec remote_region {
                 .iov_base = (void*)current_addr,
-                .iov_len = sizeof(local_int_buffer)
+                .iov_len = sizeof(current_buffer_size)
             };
 
             ssize_t bytes_read = process_vm_readv(pid_int, &local_region, 1, &remote_region, 1, 0);
 
-            if(bytes_read == -1)
-            {
+            if (bytes_read == -1) {
                 continue;
             }
 
-            if(local_int_buffer == value_to_find)
-            {
-                std::cout << "Found match at address: 0x" << std::hex << current_addr << std::dec << "\n";
+            if (bytes_read >= static_cast<ssize_t>(sizeof(int))) {
+                size_t loop_limit = bytes_read - sizeof(int);
+
+                for (size_t offset = 0; offset <= loop_limit; offset += 1) {
+                    int* potential_integer = reinterpret_cast<int*>(&local_buffer[offset]);
+
+                    if (*potential_integer == value_to_find) {
+                        unsigned long long real_address = current_addr + offset;
+                        std::cout << " -> Match Found at Address: 0x" << std::hex << real_address << std::dec << "\n";
+                    }
+                }
             }
+
+
         }
     }
     return 0;
