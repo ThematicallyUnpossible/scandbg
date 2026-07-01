@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 
             if(bytes_read == -1)
             {
-                break;
+                continue;
             }
 
             if(local_int_buffer == value_to_find)
