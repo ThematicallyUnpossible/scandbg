@@ -89,12 +89,6 @@ int main(int argc, char* argv[])
         break;
     }
 
-    int target_fd = open(target_mem_path.c_str(), O_RDONLY);
-    if(target_fd == -1){
-        std::cerr << "Unable to open " + target_mem_path;
-        return 1;
-    }
-
     for( auto region : target_mem_available )
     {
         for (unsigned long long current_addr = region.m_start_address;
@@ -126,8 +120,5 @@ int main(int argc, char* argv[])
             }
         }
     }
-
-
-    close(target_fd);
     return 0;
 }
