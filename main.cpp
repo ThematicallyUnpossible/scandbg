@@ -6,134 +6,144 @@
 #include <vector>
 #include <fstream>
 #include <string>
-#include <limits>
 
-struct MemoryBlueprint
-{
+#define OPERATION_SIZE 4096
+
+struct MemoryPage{
     unsigned long long m_start_address;
     unsigned long long m_end_address;
-    std::size_t m_size;
+    std::size_t        m_size;
 };
 
-
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
     if(argc != 2){
-        std::cerr << "Invalid usage. Expected : scandbg <PID>";
-        return 1;
+        std::cerr << "Invalid arguments, expected : ./scandbg <Process ID>";
     }
 
-    std::string pid_string = argv[1];
+    std::string pid_string { argv[1] };
+    int pid_int;
 
-    int pid_int{};
-
-    try {
-
+    try{
         pid_int = std::stoi(pid_string);
-
-    } catch (...) {
-
-        std::cerr << "Unable to parse PID.";
+    }catch(...){
+        std::cerr << "Unable to convert PID";
         return 1;
     }
 
-    std::string target_mem_path = "/proc/" + pid_string + "/maps";
+    std::cout << "Current pid : " + pid_string + "\n";
 
-    std::ifstream target_mem_file(target_mem_path);
+    std::string target_maps_path { "/proc/" + pid_string + "/maps" };
 
-    std::vector<MemoryBlueprint> target_mem_available{};
+    std::ifstream target_ifstream(target_maps_path);
 
-    std::string target_mem_line;
+    std::string current_page{};
 
-    while (std::getline(target_mem_file, target_mem_line)) {
+    std::vector<MemoryPage> valid_memory_pages{};
 
-        size_t dash_index = target_mem_line.find('-');
-        size_t first_space_index = target_mem_line.find(' ');
+    while(std::getline(target_ifstream, current_page)){
 
-        if (dash_index == std::string::npos || first_space_index == std::string::npos) {
+        std::size_t dash_iter = current_page.find('-');
+        std::size_t space_iter = current_page.find(' ');
+
+        if(dash_iter == std::string::npos || space_iter == std::string::npos){
             continue;
         }
 
-        std::string start_hex = target_mem_line.substr(0, dash_index);
+        //offset 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20
+        //pages  A  B  C  D  E  F  G  -  A  B  C  D  E  F  G     p  -  -  r
 
-        std::string end_hex = target_mem_line.substr(dash_index + 1, first_space_index - (dash_index + 1));
+        std::string start_address = current_page.substr(0, dash_iter);
+        std::string end_address = current_page.substr(dash_iter + 1, space_iter - (dash_iter + 1));
+        std::string permission = current_page.substr(space_iter + 1, 4);
 
-        std::string perms = target_mem_line.substr(first_space_index + 1, 4);
-
-        if (perms[0] != 'r') {
+        if(permission[0] != 'r'){
             continue;
         }
 
-        MemoryBlueprint region;
-        region.m_start_address = std::stoull(start_hex, nullptr, 16);
-        region.m_end_address   = std::stoull(end_hex, nullptr, 16);
-        region.m_size  = region.m_end_address - region.m_start_address;
+        unsigned long long ull_start_address;
+        unsigned long long ull_end_address;
+        std::size_t size;
 
-        target_mem_available.push_back(region);
+        try{
+            ull_start_address = std::stoull(start_address, nullptr, 16);
+            ull_end_address = std::stoull(end_address, nullptr, 16);
+            size = ull_end_address - ull_start_address;
+        }catch(...){
+            std::cerr << "An error encountered whilst trying to convert addresses";
+            return 1;
+        }
+
+        valid_memory_pages.push_back({
+            .m_start_address = ull_start_address,
+            .m_end_address = ull_end_address,
+            .m_size = size
+        });
+
     }
+    target_ifstream.close();
 
     int value_to_find{};
-    while(true)
-    {
-        write(1, "\033[2J\033[1;1H", 7);
-        std::cout << "Enter value to find : ";
+    std::cout << "Enter integer value to find in remote process : ";
+    std::cin >> value_to_find;
 
-        std::cin >> value_to_find;
-
-        if(std::cin.fail())
-        {
-            std::cin.clear();
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            continue;
-        }
-        break;
+    if(std::cin.fail()){
+        std::cerr << "Error : invalid number / number is too large";
+        return 1;
     }
 
-    constexpr std::size_t buffer_size = 4069;
-    std::vector<char> local_buffer(buffer_size);
+    std::vector<char> bytes_map(OPERATION_SIZE);
 
-    for( const auto& region : target_mem_available )
-    {
-        for (unsigned long long current_addr = region.m_start_address;
-             current_addr <= region.m_end_address - sizeof(int);
-             current_addr += sizeof(int)){
+    int match_count{};
 
-            std::size_t current_buffer_size = buffer_size;
-            if (current_addr + buffer_size > region.m_end_address) {
-                current_buffer_size = region.m_end_address - current_addr;
+    for(const auto& current_memory_page : valid_memory_pages){
+        for(
+            unsigned long long current_chunk_address = current_memory_page.m_start_address;
+            current_chunk_address < current_memory_page.m_end_address;
+            current_chunk_address += OPERATION_SIZE
+            ) {
+
+            std::size_t reading_size = OPERATION_SIZE;
+            if(current_chunk_address + OPERATION_SIZE > current_memory_page.m_end_address){
+                reading_size = current_memory_page.m_end_address - current_chunk_address;
             }
 
-            struct iovec local_region {
-                .iov_base = local_buffer.data(),
-                    .iov_len = sizeof(current_buffer_size)
+            struct iovec local_region{
+                .iov_base = bytes_map.data(),
+                .iov_len = reading_size
             };
 
-            struct iovec remote_region {
-                .iov_base = (void*)current_addr,
-                .iov_len = sizeof(current_buffer_size)
+            struct iovec remote_region{
+                .iov_base = reinterpret_cast<void*>(current_chunk_address),
+                .iov_len = reading_size
             };
 
             ssize_t bytes_read = process_vm_readv(pid_int, &local_region, 1, &remote_region, 1, 0);
-
-            if (bytes_read == -1) {
+            if(bytes_read == -1){
                 continue;
             }
 
-            if (bytes_read >= static_cast<ssize_t>(sizeof(int))) {
-                size_t loop_limit = bytes_read - sizeof(int);
 
-                for (size_t offset = 0; offset <= loop_limit; offset += 1) {
-                    int* potential_integer = reinterpret_cast<int*>(&local_buffer[offset]);
 
-                    if (*potential_integer == value_to_find) {
-                        unsigned long long real_address = current_addr + offset;
-                        std::cout << " -> Match Found at Address: 0x" << std::hex << real_address << std::dec << "\n";
-                    }
+            for(std::size_t i{0}; i + sizeof(int) <= reading_size; i++){
+                char* current_byte = &bytes_map[i];
+                int possible_int = *reinterpret_cast<int*>(current_byte);
+                if(possible_int == value_to_find){
+                    std::cout << "Found match, address : 0x" << std::hex << current_chunk_address + i << std::dec << "\n";
+                    match_count += 1;
                 }
             }
-
-
         }
     }
-    return 0;
+
+    if(match_count == 0){
+        std::cout << "Value not found.\n";
+    }
+    else
+    {
+        std::cout << "Total matches : " << match_count << "\n";
+    }
+
+
+
 }
