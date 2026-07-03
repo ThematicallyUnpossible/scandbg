@@ -20,6 +20,7 @@ int main(int argc, const char* argv[])
 {
     if(argc != 2){
         std::cerr << "Invalid arguments, expected : ./scandbg <Process ID>";
+        return 1;
     }
 
     std::string pid_string { argv[1] };
