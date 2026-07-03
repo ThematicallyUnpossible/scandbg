@@ -96,7 +96,7 @@ int main(int argc, const char* argv[])
     std::vector<unsigned long long> address_matches{};
 
     int match_count{};
-
+    int print_count{};
     for(const auto& current_memory_page : valid_memory_pages){
         for(
             unsigned long long current_chunk_address = current_memory_page.m_start_address;
@@ -124,8 +124,6 @@ int main(int argc, const char* argv[])
                 continue;
             }
 
-
-            int count_cout{0};
             for(std::size_t i{0}; i + sizeof(int) <= reading_size; i++){
                 char* current_byte = &bytes_map[i];
                 int possible_int = *reinterpret_cast<int*>(current_byte);
@@ -135,14 +133,16 @@ int main(int argc, const char* argv[])
 
                     std::cout << "0x" << std::hex << current_int_address << std::dec;
 
-                    if(count_cout == 5){
-                        count_cout = 0;
+                    print_count += 1;
+
+                    if(print_count >= 4){
                         std::cout << "\n";
+                        print_count = 0;
                     }else{
                         std::cout << " ";
                     }
 
-                    count_cout++;
+
 
                     address_matches.push_back(current_int_address);
                     match_count += 1;
@@ -151,6 +151,7 @@ int main(int argc, const char* argv[])
         }
     }
 
+    std::cout << "\n";
     if(match_count == 0){
         std::cout << "Value not found.\n";
         return 1;
@@ -159,7 +160,6 @@ int main(int argc, const char* argv[])
     {
         std::cout << "Total matches : " << match_count << "\n";
     }
-
 
 
 
