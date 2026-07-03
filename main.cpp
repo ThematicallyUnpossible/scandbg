@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <limits.h>
 
 #define OPERATION_SIZE 4096
 
@@ -161,6 +162,66 @@ int main(int argc, const char* argv[])
         std::cout << "Total matches : " << match_count << "\n";
     }
 
+    //clearning cin buffer
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    //
+
+    std::cout << "Type address to be written into : ";
+    std::string selected_address_string{};
+    std::getline(std::cin, selected_address_string);
 
 
+    std::string selected_address_valid_string{};
+    std::string selected_address_slice = selected_address_string.substr(0, 2);
+    if(selected_address_slice == "0x"){
+        selected_address_valid_string = selected_address_string;
+    }else{
+        selected_address_valid_string = "0x" + selected_address_string;
+    }
+
+    unsigned long long selected_address_ull{};
+    try{
+        selected_address_ull = std::stoull(selected_address_valid_string, nullptr, 16);
+    }catch(...){
+        std::cerr << "Unable to convert selected address";
+        return 1;
+    }
+
+    bool selected_address_isfound{false};
+    for(const auto address : address_matches){
+        if(address == selected_address_ull){
+            selected_address_isfound = true;
+            break;
+        }
+    }
+    if(!selected_address_isfound){
+        std::cerr << "Address isnt valid";
+        return 1;
+    }
+
+    int int_write_value{};
+    std::cout << "Type int number to overwrite object at " + selected_address_valid_string + " : ";
+    std::cin >> int_write_value;
+    if(std::cin.fail()){
+        std::cerr << "std::cin fails.";
+        return 1;
+    }
+
+    struct iovec local_region{
+        .iov_base  = &int_write_value,
+        .iov_len  = sizeof(int_write_value)
+    };
+
+    struct iovec remote_region{
+        .iov_base = (void*)selected_address_ull,
+        .iov_len = sizeof(int_write_value)
+    };
+
+    ssize_t bytes_written = process_vm_writev(pid_int, &local_region, 1, &remote_region, 1, 0);
+    if(bytes_written == -1){
+        std::perror("writev fails ");
+    }
+
+    return 0;
 }
