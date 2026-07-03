@@ -172,18 +172,9 @@ int main(int argc, const char* argv[])
     std::string selected_address_string{};
     std::getline(std::cin, selected_address_string);
 
-
-    std::string selected_address_valid_string{};
-    std::string selected_address_slice = selected_address_string.substr(0, 2);
-    if(selected_address_slice == "0x"){
-        selected_address_valid_string = selected_address_string;
-    }else{
-        selected_address_valid_string = "0x" + selected_address_string;
-    }
-
     unsigned long long selected_address_ull{};
     try{
-        selected_address_ull = std::stoull(selected_address_valid_string, nullptr, 16);
+        selected_address_ull = std::stoull(selected_address_string, nullptr, 16);
     }catch(...){
         std::cerr << "Unable to convert selected address";
         return 1;
@@ -202,7 +193,7 @@ int main(int argc, const char* argv[])
     }
 
     int int_write_value{};
-    std::cout << "Type int number to overwrite object at " + selected_address_valid_string + " : ";
+    std::cout << "Type int number to overwrite object at 0x" + selected_address_string + " : ";
     std::cin >> int_write_value;
     if(std::cin.fail()){
         std::cerr << "std::cin fails.";
