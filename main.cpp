@@ -107,11 +107,6 @@ int main(int argc, const char* argv[])
     int value_to_find{};
     prompt_mutate_int("Enter integer value to find in remote process : ", value_to_find);
 
-    if(std::cin.fail()){
-        std::cerr << "Error : invalid number / number is too large";
-        return 1;
-    }
-
     std::vector<char> bytes_map(OPERATION_SIZE);
     std::vector<unsigned long long> address_matches{};
 
