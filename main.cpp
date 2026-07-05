@@ -6,7 +6,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
-#include <limits.h>
+#include <limits>
 
 #define OPERATION_SIZE 4096
 
@@ -15,6 +15,25 @@ struct MemoryPage{
     unsigned long long m_end_address;
     std::size_t        m_size;
 };
+
+void refresh_cin(){
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+
+void prompt_mutate_int(std::string_view prefix, int& in){
+    std::cout << prefix;
+    while(true){
+        std::cin >> in;
+        if(std::cin.fail()){
+            refresh_cin ();
+            std::cout << prefix;
+            continue;
+        }
+        return;
+    }
+}
 
 int main(int argc, const char* argv[])
 {
@@ -86,8 +105,7 @@ int main(int argc, const char* argv[])
     target_ifstream.close();
 
     int value_to_find{};
-    std::cout << "Enter integer value to find in remote process : ";
-    std::cin >> value_to_find;
+    prompt_mutate_int("Enter integer value to find in remote process : ", value_to_find);
 
     if(std::cin.fail()){
         std::cerr << "Error : invalid number / number is too large";
@@ -143,9 +161,6 @@ int main(int argc, const char* argv[])
                     }else{
                         std::cout << " ";
                     }
-
-
-
                     address_matches.push_back(current_int_address);
                     match_count += 1;
                 }
