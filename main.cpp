@@ -9,6 +9,7 @@
 #include <limits>
 #include <optional>
 #include <filesystem>
+#include <cstring>
 
 #define STANDARD_OPERATION_SIZE 4096
 
@@ -131,8 +132,9 @@ public:
                 ssize_t bytes_read = process_vm_readv(m_pid_int, &local_read_region, 1, &remote_read_region, 1 ,0);
                 if(bytes_read != -1 && bytes_read >= 4){
 
-                    for(std::size_t index{}; index + sizeof(int) <= static_cast<std::size_t>(bytes_read); ++index){
-                        int possible_int = *(reinterpret_cast<int*>(&bytes_container[index]));
+                    for(std::size_t index{}; index + sizeof(int) <= static_cast<std::size_t>(bytes_read); index += sizeof(int)){
+                        int possible_int{};
+                        std::memcpy(&possible_int, &bytes_container[index], sizeof(int));
                         if(possible_int == value_to_find){
                             temporary_matching_address.push_back({current_address + index, possible_int});
                             match_count += 1;
