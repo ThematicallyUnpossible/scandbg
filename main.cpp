@@ -173,8 +173,6 @@ public:
                 if(read_value == value_to_find){
                 temporary.push_back({object.m_address, value_to_find});
                 match_count += 1;
-
-                std::cout << "[*] found Match! address: 0x" << std::hex << object.m_address << std::dec << '\n';
             }
 
         }
