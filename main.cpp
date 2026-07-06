@@ -240,10 +240,11 @@ std::string G_action_list = "---------------------------\n"
                             "[2] rescan memory region.\n"
                             "[3] overwrite a value\n"
                             "[4] capture last scanned addresses\n"
-                            "[5] scan captured addresses"
+                            "[5] scan captured addresses\n"
+                            "[6] print current address buffer"
                             "\n---------------------------";
 #define MINIMUM_ACTION 1
-#define MAXIMUM_ACTION 5
+#define MAXIMUM_ACTION 6
 
 int main(int argc, const char* argv[]){
     std::cout << "\n";
@@ -271,7 +272,6 @@ int main(int argc, const char* argv[]){
 
     while(true){
         std::cout << "\n" << G_action_list << "\n";
-        clean_cin();
         prompt_mutate_int(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
         if(current_action_choice == 1){
             int value_to_find{};
@@ -347,7 +347,20 @@ int main(int argc, const char* argv[]){
                 std::cerr << "[!] no value found\n";
                 continue;
             }
+            address_buffer = result.value();
             print_addresses(result.value());
+        }
+        else if(current_action_choice == 6){
+            if(!address_buffer){
+                std::cerr << "[!] address buffer is empty";
+                continue;
+            }
+            if(address_buffer.value().empty()){
+                std::cerr << "[!] address buffer is empty";
+                continue;
+            }
+
+            print_addresses(address_buffer.value());
         }
 
     }
