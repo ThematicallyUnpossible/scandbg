@@ -7,223 +7,291 @@
 #include <fstream>
 #include <string>
 #include <limits>
+#include <optional>
+#include <filesystem>
 
-#define OPERATION_SIZE 4096
+#define STANDARD_OPERATION_SIZE 4096
 
-struct MemoryPage{
+struct AddressContainer{
     unsigned long long m_start_address;
     unsigned long long m_end_address;
-    std::size_t        m_size;
 };
 
-void refresh_cin(){
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-}
+class ProcessDebugger{
+private :
+    int m_pid_int{};
+    std::string m_pid_string{};
+    std::vector<AddressContainer> m_valid_address_list{};
 
+    ProcessDebugger(int pid_int, std::string pid_string):
+        m_pid_int{pid_int},
+        m_pid_string{pid_string}{}
 
-void prompt_mutate_int(std::string_view prefix, int& in){
-    std::cout << prefix;
-    while(true){
-        std::cin >> in;
-        if(std::cin.fail()){
-            refresh_cin ();
-            std::cout << prefix;
-            continue;
-        }
-        return;
-    }
-}
+public:
+    ProcessDebugger() = delete;
 
-int main(int argc, const char* argv[])
-{
-    if(argc != 2){
-        std::cerr << "Invalid arguments, expected : ./scandbg <Process ID>";
-        return 1;
+    int get_pid_int() const {
+        return m_pid_int;
     }
 
-    std::string pid_string { argv[1] };
-    int pid_int;
-
-    try{
-        pid_int = std::stoi(pid_string);
-    }catch(...){
-        std::cerr << "Unable to convert PID";
-        return 1;
+    std::string get_pid_string() const {
+        return m_pid_string;
     }
 
-    std::cout << "Current pid : " + pid_string + "\n";
-
-    std::string target_maps_path { "/proc/" + pid_string + "/maps" };
-
-    std::ifstream target_ifstream(target_maps_path);
-
-    std::string current_page{};
-
-    std::vector<MemoryPage> valid_memory_pages{};
-
-    while(std::getline(target_ifstream, current_page)){
-
-        std::size_t dash_iter = current_page.find('-');
-        std::size_t space_iter = current_page.find(' ');
-
-        if(dash_iter == std::string::npos || space_iter == std::string::npos){
-            continue;
-        }
-
-        //offset 1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20
-        //pages  A  B  C  D  E  F  G  -  A  B  C  D  E  F  G     p  -  -  r
-
-        std::string start_address = current_page.substr(0, dash_iter);
-        std::string end_address = current_page.substr(dash_iter + 1, space_iter - (dash_iter + 1));
-        std::string permission = current_page.substr(space_iter + 1, 4);
-
-        if(permission[0] != 'r'){
-            continue;
-        }
-
-        unsigned long long ull_start_address;
-        unsigned long long ull_end_address;
-        std::size_t size;
+    static std::optional<ProcessDebugger> create(std::string pid_string){
+        int validated_pid_int{};
 
         try{
-            ull_start_address = std::stoull(start_address, nullptr, 16);
-            ull_end_address = std::stoull(end_address, nullptr, 16);
-            size = ull_end_address - ull_start_address;
+            validated_pid_int = std::stoi(pid_string);
         }catch(...){
-            std::cerr << "An error encountered whilst trying to convert addresses";
-            return 1;
+            return std::nullopt;
         }
 
-        valid_memory_pages.push_back({
-            .m_start_address = ull_start_address,
-            .m_end_address = ull_end_address,
-            .m_size = size
-        });
+        std::string maps_path = "/proc/" + pid_string + "/maps";
 
+        if(!std::filesystem::exists(maps_path)){
+            return std::nullopt;
+        }
+
+        return ProcessDebugger(validated_pid_int, std::move(pid_string));
     }
-    target_ifstream.close();
 
-    int value_to_find{};
-    prompt_mutate_int("Enter integer value to find in remote process : ", value_to_find);
+    std::optional<std::vector<AddressContainer>> scan_memory_map(){
+        std::string path_to_maps = "/proc/" + m_pid_string + "/maps";
+        std::ifstream ifstream_to_maps(path_to_maps);
+        if(!ifstream_to_maps.is_open()){
+            return std::nullopt;
+        }
 
-    std::vector<char> bytes_map(OPERATION_SIZE);
-    std::vector<unsigned long long> address_matches{};
+        std::vector<AddressContainer> temporary_valid_address_list{};
+        std::string current_page;
+        while(std::getline(ifstream_to_maps, current_page)){
+            std::size_t dash_index = current_page.find('-');
+            std::size_t space_index = current_page.find(' ');
 
-    int match_count{};
-    int print_count{};
-    for(const auto& current_memory_page : valid_memory_pages){
-        for(
-            unsigned long long current_chunk_address = current_memory_page.m_start_address;
-            current_chunk_address < current_memory_page.m_end_address;
-            current_chunk_address += OPERATION_SIZE
-            ) {
-
-            std::size_t reading_size = OPERATION_SIZE;
-            if(current_chunk_address + OPERATION_SIZE > current_memory_page.m_end_address){
-                reading_size = current_memory_page.m_end_address - current_chunk_address;
-            }
-
-            struct iovec local_region{
-                .iov_base = bytes_map.data(),
-                .iov_len = reading_size
-            };
-
-            struct iovec remote_region{
-                .iov_base = reinterpret_cast<void*>(current_chunk_address),
-                .iov_len = reading_size
-            };
-
-            ssize_t bytes_read = process_vm_readv(pid_int, &local_region, 1, &remote_region, 1, 0);
-            if(bytes_read == -1){
+            //skipping invalid mem page
+            if(dash_index == std::string::npos || space_index == std::string::npos){
                 continue;
             }
 
-            for(std::size_t i{0}; i + sizeof(int) <= reading_size; i++){
-                char* current_byte = &bytes_map[i];
-                int possible_int = *reinterpret_cast<int*>(current_byte);
-                if(possible_int == value_to_find){
+            std::string start_address =  current_page.substr(0, dash_index);
+            std::string end_address = current_page.substr(dash_index + 1, space_index -  (dash_index + 1));
+            std::string permission = current_page.substr(space_index + 1, 4);
 
-                    unsigned long long current_int_address = current_chunk_address + i;
+            if(permission[0] != 'r'){
+                continue;
+            }
 
-                    std::cout << "0x" << std::hex << current_int_address << std::dec;
+            try{
+                unsigned long long start_ull = std::stoull(start_address, nullptr,  16);
+                unsigned long long end_ull = std::stoull(end_address, nullptr, 16);
 
-                    print_count += 1;
-
-                    if(print_count >= 4){
-                        std::cout << "\n";
-                        print_count = 0;
-                    }else{
-                        std::cout << " ";
-                    }
-                    address_matches.push_back(current_int_address);
-                    match_count += 1;
-                }
+                temporary_valid_address_list.push_back({
+                    start_ull,
+                    end_ull,
+                });
+            }catch(...){
+                return std::nullopt;
             }
         }
+        return temporary_valid_address_list;
     }
 
-    std::cout << "\n";
-    if(match_count == 0){
-        std::cout << "Value not found.\n";
-        return 1;
-    }
-    else
-    {
-        std::cout << "Total matches : " << match_count << "\n";
+    std::optional<std::vector<unsigned long long>> scan_int(const std::vector<AddressContainer>& valid_address_container, int value_to_find){
+
+        std::vector<unsigned long long> temporary_matching_address{};
+        std::vector<char> bytes_container(STANDARD_OPERATION_SIZE);
+
+        int match_count{};
+        for(const auto& AddressBlock : valid_address_container){
+
+            for(unsigned long long current_address = AddressBlock.m_start_address; current_address < AddressBlock.m_end_address;  current_address +=  STANDARD_OPERATION_SIZE){
+
+                std::size_t used_operation_size = STANDARD_OPERATION_SIZE;
+                if((current_address + STANDARD_OPERATION_SIZE) >  AddressBlock.m_end_address){
+                    used_operation_size = (AddressBlock.m_end_address - current_address);
+                }
+
+                struct iovec local_read_region{
+                    .iov_base = bytes_container.data(),
+                    .iov_len = used_operation_size
+                };
+
+                struct iovec remote_read_region{
+                    .iov_base = reinterpret_cast<void*>(current_address),
+                    .iov_len = used_operation_size
+                };
+
+                ssize_t bytes_read = process_vm_readv(m_pid_int, &local_read_region, 1, &remote_read_region, 1 ,0);
+                if(bytes_read != -1 && bytes_read >= 4){
+
+                    for(std::size_t index{}; index + sizeof(int) <= static_cast<std::size_t>(bytes_read); ++index){
+                        int possible_int = *(reinterpret_cast<int*>(&bytes_container[index]));
+                        if(possible_int == value_to_find){
+                            temporary_matching_address.push_back(current_address + index);
+                            match_count += 1;
+                        }
+                    }
+                }
+
+            }
+
+        }
+        if(match_count <= 0){
+            return std::nullopt;
+        }
+
+        return temporary_matching_address;
     }
 
-    //clearning cin buffer
+
+};
+
+
+void clean_cin(){
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    //
+}
 
-    std::cout << "Type address to be written into : ";
-    std::string selected_address_string{};
-    std::getline(std::cin, selected_address_string);
-
-    unsigned long long selected_address_ull{};
-    try{
-        selected_address_ull = std::stoull(selected_address_string, nullptr, 16);
-    }catch(...){
-        std::cerr << "Unable to convert selected address";
-        return 1;
+using int_num_lim = std::numeric_limits<int>;
+void prompt_mutate_int(int& x,std::string_view prefix,int minimum = int_num_lim::min(),int maximum = int_num_lim::max()){
+    std::cout << prefix;
+    int temporary{};
+    while(true){
+        std::cin >> temporary;
+        if(std::cin.fail()){
+            std::cout << prefix;
+            clean_cin();
+            continue;
+        }
+        if(temporary < minimum || temporary > maximum){
+            std::cout << prefix;
+            clean_cin();
+            continue;
+        }
+        break;
     }
+    x = temporary;
+}
 
-    bool selected_address_isfound{false};
-    for(const auto address : address_matches){
-        if(address == selected_address_ull){
-            selected_address_isfound = true;
-            break;
+void print_addresses(std::vector<unsigned long long>& list){
+
+    int print_count{};
+    std::cout << "\n--------------------------------------------\n";
+    for(const auto address : list){
+        std::cout << "0x" << std::hex << address << std::dec;
+        print_count += 1;
+
+        if(print_count < 3){
+            std::cout << " ";
+        }else{
+            std::cout << "\n";
+            print_count = 0;
         }
     }
-    if(!selected_address_isfound){
-        std::cerr << "Address isnt valid";
+    std::cout << "\n--------------------------------------------\n";
+
+}
+
+std::string G_action_list = "---------------------------\n"
+                            "[1] scan for int value.\n"
+                            "[2] rescan memory region.\n"
+                            "[3] overwrite a value"
+                            "\n---------------------------";
+#define MINIMUM_ACTION 1
+#define MAXIMUM_ACTION 3
+
+int main(int argc, const char* argv[]){
+    std::cout << "\n";
+    if(argc != 2){
+        std::cerr << "[x] invalid usage. sudo ./scandbg <pid>";
+    }
+    auto system_object = ProcessDebugger::create(argv[1]);
+    if(!system_object){
+        std::cerr << "[x] unable to construct a system_object\n";
         return 1;
     }
+    std::cout << "[*] system initialized with pid " << system_object.value().get_pid_string() << "\n";
 
-    int int_write_value{};
-    std::cout << "Type int number to overwrite object at 0x" + selected_address_string + " : ";
-    std::cin >> int_write_value;
-    if(std::cin.fail()){
-        std::cerr << "std::cin fails.";
+    auto valid_address_list = system_object.value().scan_memory_map();
+    if(!valid_address_list){
+        std::cerr << "[x] unable to get the list of valid addresses\n";
         return 1;
     }
+    std::cout << "[*] found regions of readable addresses.\n";
 
-    struct iovec local_region{
-        .iov_base  = &int_write_value,
-        .iov_len  = sizeof(int_write_value)
-    };
+    int current_action_choice{};
+    while(true){
 
-    struct iovec remote_region{
-        .iov_base = (void*)selected_address_ull,
-        .iov_len = sizeof(int_write_value)
-    };
+        std::optional<std::vector<unsigned long long>> address_buffer{};
 
-    ssize_t bytes_written = process_vm_writev(pid_int, &local_region, 1, &remote_region, 1, 0);
-    if(bytes_written == -1){
-        std::perror("writev fails ");
+        std::cout << "\n" << G_action_list << "\n";
+        prompt_mutate_int(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
+        if(current_action_choice == 1){
+            int value_to_find{};
+            prompt_mutate_int(value_to_find, "[?] type the value to be scanned : ");
+            address_buffer = system_object.value().scan_int(valid_address_list.value(), value_to_find);
+            if(!address_buffer || address_buffer.value().empty()){
+                std::cout << "[x] no value found.\n";
+                continue;
+            }else{
+                print_addresses(address_buffer.value());
+                std::cout << '\n';
+            }
+        }
+        else if(current_action_choice == 2){
+            valid_address_list = system_object.value().scan_memory_map();
+            if(!valid_address_list){
+                std::cerr << "[x] unable to get the list of valid addresses\n";
+                return 1;
+            }
+            std::cout << "[*] refreshed regions of readable addresses.\n";
+        }
+        else if(current_action_choice == 3){
+            clean_cin();
+            std::string selected_address;
+            std::getline(std::cin, selected_address);
+            unsigned long long selected_address_ull{};
+            try{
+                selected_address_ull = std::stoull(selected_address, nullptr, 16);
+            }catch(...){
+                std::cout << "[!] unable to convert (" + selected_address + "). continuing anyway";
+                continue;
+            }
+
+            int overwrite_with{};
+            prompt_mutate_int(overwrite_with, "[?] type a integer value to overwrite with : ");
+
+            struct iovec local_write_region {
+                .iov_base = &overwrite_with,
+                .iov_len = sizeof(overwrite_with)
+            };
+            struct iovec remote_write_region{
+                .iov_base = reinterpret_cast<void*>(selected_address_ull),
+                .iov_len = sizeof(overwrite_with)
+            };
+
+            ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
+            if(bytes_written == -1){
+                std::cerr << "[!] failed to write at address. continuing anyway";
+            }else{
+                std::cout << "[*] succesfulyl written";
+                continue;
+            }
+
+        }
     }
+
+
+
+
+
+
+
+
+
+
+
 
     return 0;
 }
