@@ -17,6 +17,12 @@ struct AddressContainer{
     unsigned long long m_end_address;
 };
 
+template<typename T>
+struct ScannedObject{
+    unsigned long long m_address;
+    T current_value;
+};
+
 class ProcessDebugger{
 private :
     int m_pid_int{};
@@ -97,9 +103,9 @@ public:
         return temporary_valid_address_list;
     }
 
-    std::optional<std::vector<unsigned long long>> scan_int(const std::vector<AddressContainer>& valid_address_container, int value_to_find){
+    std::optional<std::vector<ScannedObject<int>>> scan_int(const std::vector<AddressContainer>& valid_address_container, int value_to_find){
 
-        std::vector<unsigned long long> temporary_matching_address{};
+        std::vector<ScannedObject<int>> temporary_matching_address{};
         std::vector<char> bytes_container(STANDARD_OPERATION_SIZE);
 
         int match_count{};
@@ -128,7 +134,7 @@ public:
                     for(std::size_t index{}; index + sizeof(int) <= static_cast<std::size_t>(bytes_read); ++index){
                         int possible_int = *(reinterpret_cast<int*>(&bytes_container[index]));
                         if(possible_int == value_to_find){
-                            temporary_matching_address.push_back(current_address + index);
+                            temporary_matching_address.push_back({current_address + index, possible_int});
                             match_count += 1;
                         }
                     }
@@ -142,6 +148,42 @@ public:
         }
 
         return temporary_matching_address;
+    }
+
+    std::optional<std::vector<ScannedObject<int>>>  scan_int_captured(const std::vector<ScannedObject<int>>& obj_list, int value_to_find){
+
+        std::vector<ScannedObject<int>> temporary{};
+
+        int match_count{};
+        for(auto& object : obj_list){
+
+            int read_value{};
+            struct iovec local_read_region{
+                .iov_base = &read_value,
+                .iov_len = sizeof(read_value)
+            };
+            struct iovec remote_read_region{
+                .iov_base = reinterpret_cast<void*>(object.m_address),
+                .iov_len  = sizeof(read_value)
+            };
+            ssize_t bytes_read = process_vm_readv(m_pid_int, &local_read_region, 1, &remote_read_region, 1, 0);
+            if(bytes_read == -1){
+                continue;
+            }
+                if(read_value == value_to_find){
+                temporary.push_back({object.m_address, value_to_find});
+                match_count += 1;
+
+                std::cout << "[*] found Match! address: 0x" << std::hex << object.m_address << std::dec << '\n';
+            }
+
+        }
+
+        if(match_count <= 0){
+            return std::nullopt;
+        }
+
+        return temporary;
     }
 
 
@@ -174,12 +216,12 @@ void prompt_mutate_int(int& x,std::string_view prefix,int minimum = int_num_lim:
     x = temporary;
 }
 
-void print_addresses(std::vector<unsigned long long>& list){
+void print_addresses(std::vector<ScannedObject<int>>& list){
 
     int print_count{};
     std::cout << "\n--------------------------------------------\n";
     for(const auto address : list){
-        std::cout << "0x" << std::hex << address << std::dec;
+        std::cout << "0x" << std::hex << address.m_address << std::dec;
         print_count += 1;
 
         if(print_count < 3){
@@ -223,11 +265,13 @@ int main(int argc, const char* argv[]){
     std::cout << "[*] found regions of readable addresses.\n";
 
     int current_action_choice{};
+
+    std::optional<std::vector<ScannedObject<int>>> address_buffer{};
+    std::vector<ScannedObject<int>> capture_buffer{};
+
     while(true){
-
-        std::optional<std::vector<unsigned long long>> address_buffer{};
-
         std::cout << "\n" << G_action_list << "\n";
+        clean_cin();
         prompt_mutate_int(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
         if(current_action_choice == 1){
             int value_to_find{};
@@ -251,6 +295,7 @@ int main(int argc, const char* argv[]){
         }
         else if(current_action_choice == 3){
             clean_cin();
+            std::cout << "[?] type the address which value you want to overwrite : ";
             std::string selected_address;
             std::getline(std::cin, selected_address);
             unsigned long long selected_address_ull{};
@@ -280,8 +325,31 @@ int main(int argc, const char* argv[]){
                 std::cout << "[*] succesfulyl written";
                 continue;
             }
-
         }
+        else if(current_action_choice == 4){
+            if(!address_buffer){
+                std::cerr << "[!] attempted to copy invalid vector. scan first";
+                continue;
+            }
+            capture_buffer = address_buffer.value();
+            std::cout << "[*] copied " << address_buffer.value().size() << " addresses into capture buffer \n";
+        }
+        else if(current_action_choice == 5){
+            if(capture_buffer.empty()){
+                std::cerr << "[!] capture buffer is empty";
+                continue;
+            }
+
+            int value_to_find{};
+            prompt_mutate_int(value_to_find, "[?] type the value to be scanned : ");
+            auto result = system_object.value().scan_int_captured(capture_buffer, value_to_find);
+            if(!result){
+                std::cerr << "[!] no value found\n";
+                continue;
+            }
+            print_addresses(result.value());
+        }
+
     }
 
 
