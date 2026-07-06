@@ -196,10 +196,12 @@ void print_addresses(std::vector<unsigned long long>& list){
 std::string G_action_list = "---------------------------\n"
                             "[1] scan for int value.\n"
                             "[2] rescan memory region.\n"
-                            "[3] overwrite a value"
+                            "[3] overwrite a value\n"
+                            "[4] capture last scanned addresses\n"
+                            "[5] scan captured addresses"
                             "\n---------------------------";
 #define MINIMUM_ACTION 1
-#define MAXIMUM_ACTION 3
+#define MAXIMUM_ACTION 5
 
 int main(int argc, const char* argv[]){
     std::cout << "\n";
