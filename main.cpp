@@ -10,6 +10,7 @@
 #include <optional>
 #include <filesystem>
 #include <cstring>
+#include <concepts>
 
 #define STANDARD_OPERATION_SIZE 4096
 
@@ -195,10 +196,12 @@ void clean_cin(){
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
-using int_num_lim = std::numeric_limits<int>;
-void prompt_mutate_int(int& x,std::string_view prefix,int minimum = int_num_lim::min(),int maximum = int_num_lim::max()){
+#define nl std::numeric_limits
+template<typename T>
+    requires std::integral<T>
+void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min(),T maximum = nl<T>::max()){
     std::cout << prefix;
-    int temporary{};
+    T temporary{};
     while(true){
         std::cin >> temporary;
         if(std::cin.fail()){
@@ -215,6 +218,7 @@ void prompt_mutate_int(int& x,std::string_view prefix,int minimum = int_num_lim:
     }
     x = temporary;
 }
+
 
 void print_addresses(std::vector<ScannedObject<int>>& list){
 
@@ -272,7 +276,7 @@ int main(int argc, const char* argv[]){
 
     while(true){
         std::cout << "\n" << G_action_list << "\n";
-        prompt_mutate_int(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
+        prompt_mutate_unified<int>(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
         if(current_action_choice == 1){
             int value_to_find{};
             prompt_mutate_int(value_to_find, "[?] type the value to be scanned : ");
@@ -307,7 +311,7 @@ int main(int argc, const char* argv[]){
             }
 
             int overwrite_with{};
-            prompt_mutate_int(overwrite_with, "[?] type a integer value to overwrite with : ");
+            prompt_mutate_unified<int>(overwrite_with, "[?] type a integer value to overwrite with : ");
 
             struct iovec local_write_region {
                 .iov_base = &overwrite_with,
@@ -341,7 +345,7 @@ int main(int argc, const char* argv[]){
             }
 
             int value_to_find{};
-            prompt_mutate_int(value_to_find, "[?] type the value to be scanned : ");
+            prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
             auto result = system_object.value().scan_int_captured(capture_buffer, value_to_find);
             if(!result){
                 std::cerr << "[!] no value found\n";
