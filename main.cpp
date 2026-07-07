@@ -156,7 +156,6 @@ public:
     }
 
     std::optional<std::vector<ScannedObject<int>>>  scan_int_captured(const std::vector<ScannedObject<int>>& obj_list, int value_to_find){
-
         std::vector<ScannedObject<int>> temporary{};
 
         int match_count{};
@@ -216,8 +215,8 @@ void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min()
     x = temporary;
 }
 
-
-void print_addresses(std::vector<ScannedObject<int>>& list){
+template <typename T>
+void print_addresses(std::vector<ScannedObject<T>>& list){
 
     int print_count{};
     std::cout << "\n--------------------------------------------\n";
