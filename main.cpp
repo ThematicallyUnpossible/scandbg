@@ -106,6 +106,7 @@ public:
     }
 
     template <typename T>
+        requires std::integral<T>
     std::optional<std::vector<ScannedObject<T>>> scan_unified(const std::vector<AddressContainer>& valid_address_container, T value_to_find){
 
         std::vector<ScannedObject<T>> temporary_matching_address{};
