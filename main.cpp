@@ -105,12 +105,13 @@ public:
         return temporary_valid_address_list;
     }
 
-    std::optional<std::vector<ScannedObject<int>>> scan_int(const std::vector<AddressContainer>& valid_address_container, int value_to_find){
+    template <typename T>
+    std::optional<std::vector<ScannedObject<T>>> scan_unified(const std::vector<AddressContainer>& valid_address_container, T value_to_find){
 
-        std::vector<ScannedObject<int>> temporary_matching_address{};
+        std::vector<ScannedObject<T>> temporary_matching_address{};
         std::vector<char> bytes_container(STANDARD_OPERATION_SIZE);
 
-        int match_count{};
+        T match_count{};
         for(const auto& AddressBlock : valid_address_container){
 
             for(unsigned long long current_address = AddressBlock.m_start_address; current_address < AddressBlock.m_end_address;  current_address +=  STANDARD_OPERATION_SIZE){
@@ -133,11 +134,11 @@ public:
                 ssize_t bytes_read = process_vm_readv(m_pid_int, &local_read_region, 1, &remote_read_region, 1 ,0);
                 if(bytes_read != -1 && bytes_read >= 4){
 
-                    for(std::size_t index{}; index + sizeof(int) <= static_cast<std::size_t>(bytes_read); index += sizeof(int)){
-                        int possible_int{};
-                        std::memcpy(&possible_int, &bytes_container[index], sizeof(int));
-                        if(possible_int == value_to_find){
-                            temporary_matching_address.push_back({current_address + index, possible_int});
+                    for(std::size_t index{}; index + sizeof(T) <= static_cast<std::size_t>(bytes_read); index += sizeof(T)){
+                        T possible_value{};
+                        std::memcpy(&possible_value, &bytes_container[index], sizeof(T));
+                        if(possible_value == value_to_find){
+                            temporary_matching_address.push_back({current_address + index, possible_value});
                             match_count += 1;
                         }
                     }
@@ -177,19 +178,14 @@ public:
                 temporary.push_back({object.m_address, value_to_find});
                 match_count += 1;
             }
-
         }
 
         if(match_count <= 0){
             return std::nullopt;
         }
-
         return temporary;
     }
-
-
 };
-
 
 void clean_cin(){
     std::cin.clear();
@@ -279,8 +275,8 @@ int main(int argc, const char* argv[]){
         prompt_mutate_unified<int>(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
         if(current_action_choice == 1){
             int value_to_find{};
-            prompt_mutate_int(value_to_find, "[?] type the value to be scanned : ");
-            address_buffer = system_object.value().scan_int(valid_address_list.value(), value_to_find);
+            prompt_mutate_unified<int>(value_to_find, "[?] type the value to be scanned : ");
+            address_buffer = system_object.value().scan_unified<int>(valid_address_list.value(), value_to_find);
             if(!address_buffer || address_buffer.value().empty()){
                 std::cout << "[x] no value found.\n";
                 continue;
