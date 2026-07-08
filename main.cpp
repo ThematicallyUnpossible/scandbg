@@ -19,10 +19,8 @@ struct AddressContainer{
     unsigned long long m_end_address;
 };
 
-template<typename T>
 struct ScannedObject{
     unsigned long long m_address;
-    T current_value;
 };
 
 class ProcessDebugger{
@@ -106,10 +104,10 @@ public:
     }
 
     template <typename T>
-        requires std::integral<T>
-    std::optional<std::vector<ScannedObject<T>>> scan_value(const std::vector<AddressContainer>& valid_address_container, T value_to_find){
+        requires std::is_arithmetic_v<T>
+    std::optional<std::vector<ScannedObject>> scan_value(const std::vector<AddressContainer>& valid_address_container, T value_to_find){
 
-        std::vector<ScannedObject<T>> temporary_matching_address{};
+        std::vector<ScannedObject> temporary_matching_address{};
         std::vector<char> bytes_container(STANDARD_OPERATION_SIZE);
 
         T match_count{};
@@ -139,7 +137,7 @@ public:
                         T possible_value{};
                         std::memcpy(&possible_value, &bytes_container[index], sizeof(T));
                         if(possible_value == value_to_find){
-                            temporary_matching_address.push_back({current_address + index, possible_value});
+                            temporary_matching_address.push_back({current_address + index});
                             match_count += 1;
                         }
                     }
@@ -156,9 +154,9 @@ public:
     }
 
     template <typename T>
-        requires std::integral<T>
-    std::optional<std::vector<ScannedObject<int>>>  scan_captured(const std::vector<ScannedObject<T>>& obj_list, T value_to_find){
-        std::vector<ScannedObject<T>> temporary{};
+        requires std::is_arithmetic_v<T>
+    std::optional<std::vector<ScannedObject>>  scan_captured(const std::vector<ScannedObject>& obj_list, T value_to_find){
+        std::vector<ScannedObject> temporary{};
 
         T match_count{};
         for(auto& object : obj_list){
@@ -177,7 +175,7 @@ public:
                 continue;
             }
             if(read_value == value_to_find){
-                temporary.push_back({object.m_address, value_to_find});
+                temporary.push_back({object.m_address});
                 match_count += 1;
             }
         }
@@ -196,7 +194,7 @@ void clean_cin(){
 
 #define nl std::numeric_limits
 template<typename T>
-    requires std::integral<T>
+    requires std::is_arithmetic_v<T>
 void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min(),T maximum = nl<T>::max()){
     std::cout << prefix;
     T temporary{};
@@ -217,8 +215,7 @@ void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min()
     x = temporary;
 }
 
-template <typename T>
-void print_addresses(std::vector<ScannedObject<T>>& list){
+void print_addresses(std::vector<ScannedObject>& list){
 
     int print_count{};
     std::cout << "\n--------------------------------------------\n";
@@ -238,15 +235,15 @@ void print_addresses(std::vector<ScannedObject<T>>& list){
 }
 
 const std::string G_action_list = "---------------------------\n"
-                            "[1] scan for int value.\n"
-                            "[2] rescan memory region.\n"
+                            "[1] scan new\n"
+                            "[2] scan captured\n"
                             "[3] overwrite a value\n"
-                            "[4] capture last scanned addresses\n"
-                            "[5] scan captured addresses\n"
+                            "[4] rescan memory region.\n"
+                            "[5] capture last scanned addresses\n"
                             "[6] print current address buffer"
                             "\n---------------------------";
 #define MINIMUM_ACTION 1
-#define MAXIMUM_ACTION 6
+#define MAXIMUM_ACTION 8
 
 int main(int argc, const char* argv[]){
     std::cout << "\n";
@@ -269,31 +266,100 @@ int main(int argc, const char* argv[]){
 
     int current_action_choice{};
 
-    std::optional<std::vector<ScannedObject<int>>> address_buffer{};
-    std::vector<ScannedObject<int>> capture_buffer{};
+    std::optional<std::vector<ScannedObject>> address_buffer{};
+    std::vector<ScannedObject> capture_buffer{};
 
     while(true){
         std::cout << "\n" << G_action_list << "\n";
         prompt_mutate_unified<int>(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
         if(current_action_choice == 1){
-            int value_to_find{};
-            prompt_mutate_unified<int>(value_to_find, "[?] type the value to be scanned : ");
-            address_buffer = system_object.value().scan_value<int>(valid_address_list.value(), value_to_find);
-            if(!address_buffer || address_buffer.value().empty()){
-                std::cout << "[x] no value found.\n";
-                continue;
-            }else{
-                print_addresses(address_buffer.value());
-                std::cout << '\n';
+
+            std::cout <<  "[1] int "
+                      <<  "[2] float "
+                      <<  "[3] double\n";
+            int type_choice{};
+            prompt_mutate_unified(type_choice, "[?] choose data type : ", 1, 3);
+            if(type_choice  == 1){
+                int value_to_find{};
+                prompt_mutate_unified<int>(value_to_find, "[?] type the value to be scanned : ");
+                address_buffer = system_object.value().scan_value<int>(valid_address_list.value(), value_to_find);
+                if(!address_buffer || address_buffer.value().empty()){
+                    std::cout << "[x] no value found.\n";
+                    continue;
+                }else{
+                    print_addresses(address_buffer.value());
+                }
             }
+            else if(type_choice == 2){
+                float value_to_find{};
+                prompt_mutate_unified<float>(value_to_find, "[?] type the value to be scanned : ");
+                address_buffer = system_object.value().scan_value<float>(valid_address_list.value(), value_to_find);
+                if(!address_buffer || address_buffer.value().empty()){
+                    std::cout << "[x] no value found.\n";
+                    continue;
+                }
+                else{
+                    print_addresses(address_buffer.value());
+                }
+            }
+            else if(type_choice == 3){
+                double value_to_find{};
+                prompt_mutate_unified<double>(value_to_find, "[?] type the value to be scanned : ");
+                address_buffer = system_object.value().scan_value<double>(valid_address_list.value(), value_to_find);
+                if(!address_buffer || address_buffer.value().empty()){
+                    std::cout << "[x] no value found.\n";
+                    continue;
+                }
+                else{
+                    print_addresses(address_buffer.value());
+                }
+            }
+
         }
-        else if(current_action_choice == 2){
-            valid_address_list = system_object.value().scan_memory_map();
-            if(!valid_address_list){
-                std::cerr << "[x] unable to get the list of valid addresses\n";
-                return 1;
+        else if(current_action_choice  ==  2){
+            if(capture_buffer.empty()){
+                std::cerr << "[!] capture buffer is empty";
+                continue;
             }
-            std::cout << "[*] refreshed regions of readable addresses.\n";
+            std::cout <<  "[1] int "
+                      <<  "[2] float "
+                      <<  "[3] double\n";
+            int type_choice{};
+            prompt_mutate_unified(type_choice, "[?] choose data type : ", 1, 3);
+
+            if(type_choice == 1){
+                int value_to_find{};
+                prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
+                auto result = system_object.value().scan_captured<int>(capture_buffer, value_to_find);
+                if(!result){
+                    std::cerr << "[!] no value found\n";
+                    continue;
+                }
+                address_buffer = result.value();
+                print_addresses(result.value());
+            }
+            else if(type_choice == 2){
+                float value_to_find{};
+                prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
+                auto result = system_object.value().scan_captured<float>(capture_buffer, value_to_find);
+                if(!result){
+                    std::cerr << "[!] no value found\n";
+                    continue;
+                }
+                address_buffer = result.value();
+                print_addresses(result.value());
+            }
+            else if(type_choice  == 3){
+                double value_to_find{};
+                prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
+                auto result = system_object.value().scan_captured<double>(capture_buffer, value_to_find);
+                if(!result){
+                    std::cerr << "[!] no value found\n";
+                    continue;
+                }
+                address_buffer = result.value();
+                print_addresses(result.value());
+            }
         }
         else if(current_action_choice == 3){
             clean_cin();
@@ -308,27 +374,87 @@ int main(int argc, const char* argv[]){
                 continue;
             }
 
-            int overwrite_with{};
-            prompt_mutate_unified<int>(overwrite_with, "[?] type a integer value to overwrite with : ");
+            std::cout <<  "[1] int "
+                      <<  "[2] float "
+                      <<  "[3] double\n";
+            int type_choice{};
+            prompt_mutate_unified(type_choice, "[?] choose data type : ", 1, 3);
 
-            struct iovec local_write_region {
-                .iov_base = &overwrite_with,
-                .iov_len = sizeof(overwrite_with)
-            };
-            struct iovec remote_write_region{
-                .iov_base = reinterpret_cast<void*>(selected_address_ull),
-                .iov_len = sizeof(overwrite_with)
-            };
+            if(type_choice ==  1){
+                int overwrite_with{};
+                prompt_mutate_unified<int>(overwrite_with, "[?] type a integer value to overwrite with : ");
 
-            ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
-            if(bytes_written == -1){
-                std::cerr << "[!] failed to write at address. continuing anyway";
-            }else{
-                std::cout << "[*] succesfulyl written";
-                continue;
+                struct iovec local_write_region {
+                    .iov_base = &overwrite_with,
+                    .iov_len = sizeof(overwrite_with)
+                };
+                struct iovec remote_write_region{
+                    .iov_base = reinterpret_cast<void*>(selected_address_ull),
+                    .iov_len = sizeof(overwrite_with)
+                };
+
+                ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
+                if(bytes_written == -1){
+                    std::cerr << "[!] failed to write at address. continuing anyway";
+                }else{
+                    std::cout << "[*] succesfulyl written";
+                    continue;
+                }
+            }
+            else if(type_choice ==  2){
+                float overwrite_with{};
+                prompt_mutate_unified<float>(overwrite_with, "[?] type a float value to overwrite with : ");
+
+                struct iovec local_write_region {
+                    .iov_base = &overwrite_with,
+                    .iov_len = sizeof(overwrite_with)
+                };
+                struct iovec remote_write_region{
+                    .iov_base = reinterpret_cast<void*>(selected_address_ull),
+                    .iov_len = sizeof(overwrite_with)
+                };
+
+                ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
+                if(bytes_written == -1){
+                    std::cerr << "[!] failed to write at address. continuing anyway";
+                }else{
+                    std::cout << "[*] succesfulyl written";
+                    continue;
+                }
+            }
+            else if(type_choice == 3){
+                double overwrite_with{};
+                prompt_mutate_unified<double>(overwrite_with, "[?] type a double value to overwrite with : ");
+
+                struct iovec local_write_region {
+                    .iov_base = &overwrite_with,
+                    .iov_len = sizeof(overwrite_with)
+                };
+                struct iovec remote_write_region{
+                    .iov_base = reinterpret_cast<void*>(selected_address_ull),
+                    .iov_len = sizeof(overwrite_with)
+                };
+
+                ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
+                if(bytes_written == -1){
+                    std::cerr << "[!] failed to write at address. continuing anyway";
+                }else{
+                    std::cout << "[*] succesfulyl written";
+                    continue;
+                }
             }
         }
+
         else if(current_action_choice == 4){
+            valid_address_list = system_object.value().scan_memory_map();
+            if(!valid_address_list){
+                std::cerr << "[x] unable to get the list of valid addresses\n";
+                return 1;
+            }
+            std::cout << "[*] refreshed regions of readable addresses.\n";
+        }
+
+        else if(current_action_choice == 5){
             if(!address_buffer){
                 std::cerr << "[!] attempted to copy invalid vector. scan first";
                 continue;
@@ -336,22 +462,7 @@ int main(int argc, const char* argv[]){
             capture_buffer = address_buffer.value();
             std::cout << "[*] copied " << address_buffer.value().size() << " addresses into capture buffer \n";
         }
-        else if(current_action_choice == 5){
-            if(capture_buffer.empty()){
-                std::cerr << "[!] capture buffer is empty";
-                continue;
-            }
 
-            int value_to_find{};
-            prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
-            auto result = system_object.value().scan_captured<int>(capture_buffer, value_to_find);
-            if(!result){
-                std::cerr << "[!] no value found\n";
-                continue;
-            }
-            address_buffer = result.value();
-            print_addresses(result.value());
-        }
         else if(current_action_choice == 6){
             if(!address_buffer){
                 std::cerr << "[!] address buffer is empty";
@@ -366,6 +477,25 @@ int main(int argc, const char* argv[]){
         }
 
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
