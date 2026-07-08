@@ -107,7 +107,7 @@ public:
 
     template <typename T>
         requires std::integral<T>
-    std::optional<std::vector<ScannedObject<T>>> scan_unified(const std::vector<AddressContainer>& valid_address_container, T value_to_find){
+    std::optional<std::vector<ScannedObject<T>>> scan_value(const std::vector<AddressContainer>& valid_address_container, T value_to_find){
 
         std::vector<ScannedObject<T>> temporary_matching_address{};
         std::vector<char> bytes_container(STANDARD_OPERATION_SIZE);
@@ -157,7 +157,7 @@ public:
 
     template <typename T>
         requires std::integral<T>
-    std::optional<std::vector<ScannedObject<int>>>  scan_integral_captured(const std::vector<ScannedObject<T>>& obj_list, T value_to_find){
+    std::optional<std::vector<ScannedObject<int>>>  scan_captured(const std::vector<ScannedObject<T>>& obj_list, T value_to_find){
         std::vector<ScannedObject<T>> temporary{};
 
         T match_count{};
@@ -278,7 +278,7 @@ int main(int argc, const char* argv[]){
         if(current_action_choice == 1){
             int value_to_find{};
             prompt_mutate_unified<int>(value_to_find, "[?] type the value to be scanned : ");
-            address_buffer = system_object.value().scan_unified<int>(valid_address_list.value(), value_to_find);
+            address_buffer = system_object.value().scan_value<int>(valid_address_list.value(), value_to_find);
             if(!address_buffer || address_buffer.value().empty()){
                 std::cout << "[x] no value found.\n";
                 continue;
@@ -344,7 +344,7 @@ int main(int argc, const char* argv[]){
 
             int value_to_find{};
             prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
-            auto result = system_object.value().scan_integral_captured<int>(capture_buffer, value_to_find);
+            auto result = system_object.value().scan_captured<int>(capture_buffer, value_to_find);
             if(!result){
                 std::cerr << "[!] no value found\n";
                 continue;
