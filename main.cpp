@@ -155,13 +155,15 @@ public:
         return temporary_matching_address;
     }
 
-    std::optional<std::vector<ScannedObject<int>>>  scan_int_captured(const std::vector<ScannedObject<int>>& obj_list, int value_to_find){
-        std::vector<ScannedObject<int>> temporary{};
+    template <typename T>
+        requires std::integral<T>
+    std::optional<std::vector<ScannedObject<int>>>  scan_integral_captured(const std::vector<ScannedObject<T>>& obj_list, T value_to_find){
+        std::vector<ScannedObject<T>> temporary{};
 
-        int match_count{};
+        T match_count{};
         for(auto& object : obj_list){
 
-            int read_value{};
+            T read_value{};
             struct iovec local_read_region{
                 .iov_base = &read_value,
                 .iov_len = sizeof(read_value)
@@ -174,7 +176,7 @@ public:
             if(bytes_read == -1){
                 continue;
             }
-                if(read_value == value_to_find){
+            if(read_value == value_to_find){
                 temporary.push_back({object.m_address, value_to_find});
                 match_count += 1;
             }
@@ -235,7 +237,7 @@ void print_addresses(std::vector<ScannedObject<T>>& list){
 
 }
 
-std::string G_action_list = "---------------------------\n"
+const std::string G_action_list = "---------------------------\n"
                             "[1] scan for int value.\n"
                             "[2] rescan memory region.\n"
                             "[3] overwrite a value\n"
@@ -253,7 +255,7 @@ int main(int argc, const char* argv[]){
     }
     auto system_object = ProcessDebugger::create(argv[1]);
     if(!system_object){
-        std::cerr << "[x] unable to construct a system_object\n";
+        std::cerr << "[x] unable to construct a system_object. is pid valid?\n";
         return 1;
     }
     std::cout << "[*] system initialized with pid " << system_object.value().get_pid_string() << "\n";
@@ -342,7 +344,7 @@ int main(int argc, const char* argv[]){
 
             int value_to_find{};
             prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
-            auto result = system_object.value().scan_int_captured(capture_buffer, value_to_find);
+            auto result = system_object.value().scan_integral_captured<int>(capture_buffer, value_to_find);
             if(!result){
                 std::cerr << "[!] no value found\n";
                 continue;
