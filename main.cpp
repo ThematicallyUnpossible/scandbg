@@ -10,7 +10,7 @@
 #include <optional>
 #include <filesystem>
 #include <cstring>
-#include <concepts>
+#include <type_traits>
 
 #define STANDARD_OPERATION_SIZE 4096
 
@@ -110,7 +110,7 @@ public:
         std::vector<ScannedObject> temporary_matching_address{};
         std::vector<char> bytes_container(STANDARD_OPERATION_SIZE);
 
-        T match_count{};
+        int match_count{};
         for(const auto& AddressBlock : valid_address_container){
 
             for(unsigned long long current_address = AddressBlock.m_start_address; current_address < AddressBlock.m_end_address;  current_address +=  STANDARD_OPERATION_SIZE){
@@ -158,7 +158,7 @@ public:
     std::optional<std::vector<ScannedObject>>  scan_captured(const std::vector<ScannedObject>& obj_list, T value_to_find){
         std::vector<ScannedObject> temporary{};
 
-        T match_count{};
+        int match_count{};
         for(auto& object : obj_list){
 
             T read_value{};
