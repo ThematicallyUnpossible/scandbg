@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(scandbg main.cpp
-    main.cpp)
+    main.cpp
+    core.h
+    core.cpp)
 
 include(GNUInstallDirs)
 install(TARGETS scandbg
