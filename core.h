@@ -47,6 +47,10 @@ public:
     template <typename T>
         requires std::is_arithmetic_v<T>
     std::optional<std::vector<ScannedObject>>  scan_captured(const std::vector<ScannedObject>& obj_list, T value_to_find);
+
+    template <typename T>
+        requires std::is_arithmetic_v<T>
+    bool write_value(unsigned long long selected_address_ull, T overwrite_with);
 };
 
 

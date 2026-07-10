@@ -7,6 +7,7 @@
 #include <string>
 #include <optional>
 #include "core.h"
+#include "core_helper.h"
 #include "utility.h"
 
 #define STANDARD_OPERATION_SIZE 4096
@@ -21,6 +22,8 @@ const std::string G_action_list = "---------------------------\n"
                             "\n---------------------------";
 #define MINIMUM_ACTION 1
 #define MAXIMUM_ACTION 8
+
+
 
 int main(int argc, const char* argv[]){
     std::cout << "\n";
@@ -57,39 +60,13 @@ int main(int argc, const char* argv[]){
             int type_choice{};
             prompt_mutate_unified(type_choice, "[?] choose data type : ", 1, 3);
             if(type_choice  == 1){
-                int value_to_find{};
-                prompt_mutate_unified<int>(value_to_find, "[?] type the value to be scanned : ");
-                address_buffer = system_object.value().scan_value<int>(valid_address_list.value(), value_to_find);
-                if(!address_buffer || address_buffer.value().empty()){
-                    std::cout << "[x] no value found.\n";
-                    continue;
-                }else{
-                    print_addresses(address_buffer.value());
-                }
+                helper_scan_value<int>(system_object, valid_address_list, address_buffer);
             }
             else if(type_choice == 2){
-                float value_to_find{};
-                prompt_mutate_unified<float>(value_to_find, "[?] type the value to be scanned : ");
-                address_buffer = system_object.value().scan_value<float>(valid_address_list.value(), value_to_find);
-                if(!address_buffer || address_buffer.value().empty()){
-                    std::cout << "[x] no value found.\n";
-                    continue;
-                }
-                else{
-                    print_addresses(address_buffer.value());
-                }
+                helper_scan_value<float>(system_object, valid_address_list, address_buffer);
             }
             else if(type_choice == 3){
-                double value_to_find{};
-                prompt_mutate_unified<double>(value_to_find, "[?] type the value to be scanned : ");
-                address_buffer = system_object.value().scan_value<double>(valid_address_list.value(), value_to_find);
-                if(!address_buffer || address_buffer.value().empty()){
-                    std::cout << "[x] no value found.\n";
-                    continue;
-                }
-                else{
-                    print_addresses(address_buffer.value());
-                }
+                helper_scan_value<double>(system_object, valid_address_list, address_buffer);
             }
 
         }
@@ -105,38 +82,13 @@ int main(int argc, const char* argv[]){
             prompt_mutate_unified(type_choice, "[?] choose data type : ", 1, 3);
 
             if(type_choice == 1){
-                int value_to_find{};
-                prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
-                auto result = system_object.value().scan_captured<int>(capture_buffer, value_to_find);
-                if(!result){
-                    std::cerr << "[!] no value found\n";
-                    continue;
-                }
-                address_buffer = result.value();
-                print_addresses(result.value());
+                helper_scan_captured<int>(system_object, capture_buffer, address_buffer);
             }
             else if(type_choice == 2){
-                float value_to_find{};
-                prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
-                auto result = system_object.value().scan_captured<float>(capture_buffer, value_to_find);
-                if(!result){
-                    std::cerr << "[!] no value found\n";
-                    continue;
-                }
-                address_buffer = result.value();
-                print_addresses(result.value());
+                helper_scan_captured<float>(system_object, capture_buffer, address_buffer);
             }
             else if(type_choice  == 3){
-                double value_to_find{};
-                prompt_mutate_unified(value_to_find, "[?] type the value to be scanned : ");
-                auto result = system_object.value().scan_captured<double>(capture_buffer, value_to_find);
-                if(!result){
-                    std::cerr << "[!] no value found\n";
-                    continue;
-                }
-                address_buffer = result.value();
-                print_addresses(result.value());
-            }
+                helper_scan_captured<double>(system_object, capture_buffer, address_buffer);
         }
         else if(current_action_choice == 3){
             clean_cin();
@@ -158,67 +110,13 @@ int main(int argc, const char* argv[]){
             prompt_mutate_unified(type_choice, "[?] choose data type : ", 1, 3);
 
             if(type_choice ==  1){
-                int overwrite_with{};
-                prompt_mutate_unified<int>(overwrite_with, "[?] type a integer value to overwrite with : ");
-
-                struct iovec local_write_region {
-                    .iov_base = &overwrite_with,
-                    .iov_len = sizeof(overwrite_with)
-                };
-                struct iovec remote_write_region{
-                    .iov_base = reinterpret_cast<void*>(selected_address_ull),
-                    .iov_len = sizeof(overwrite_with)
-                };
-
-                ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
-                if(bytes_written == -1){
-                    std::cerr << "[!] failed to write at address. continuing anyway";
-                }else{
-                    std::cout << "[*] succesfulyl written";
-                    continue;
-                }
+                helper_write_value<int>(system_object, selected_address_ull);
             }
             else if(type_choice ==  2){
-                float overwrite_with{};
-                prompt_mutate_unified<float>(overwrite_with, "[?] type a float value to overwrite with : ");
-
-                struct iovec local_write_region {
-                    .iov_base = &overwrite_with,
-                    .iov_len = sizeof(overwrite_with)
-                };
-                struct iovec remote_write_region{
-                    .iov_base = reinterpret_cast<void*>(selected_address_ull),
-                    .iov_len = sizeof(overwrite_with)
-                };
-
-                ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
-                if(bytes_written == -1){
-                    std::cerr << "[!] failed to write at address. continuing anyway";
-                }else{
-                    std::cout << "[*] succesfulyl written";
-                    continue;
-                }
+                helper_write_value<float>(system_object, selected_address_ull);
             }
             else if(type_choice == 3){
-                double overwrite_with{};
-                prompt_mutate_unified<double>(overwrite_with, "[?] type a double value to overwrite with : ");
-
-                struct iovec local_write_region {
-                    .iov_base = &overwrite_with,
-                    .iov_len = sizeof(overwrite_with)
-                };
-                struct iovec remote_write_region{
-                    .iov_base = reinterpret_cast<void*>(selected_address_ull),
-                    .iov_len = sizeof(overwrite_with)
-                };
-
-                ssize_t bytes_written = process_vm_writev(system_object.value().get_pid_int(), &local_write_region, 1, &remote_write_region, 1, 0);
-                if(bytes_written == -1){
-                    std::cerr << "[!] failed to write at address. continuing anyway";
-                }else{
-                    std::cout << "[*] succesfulyl written";
-                    continue;
-                }
+                helper_write_value<double>(system_object, selected_address_ull);
             }
         }
 
@@ -255,35 +153,6 @@ int main(int argc, const char* argv[]){
 
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     return 0;
+    }
 }

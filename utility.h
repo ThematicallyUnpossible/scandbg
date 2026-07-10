@@ -1,3 +1,4 @@
+#define nl std::numeric_limits
 #ifndef UTILITY_H
 #define UTILITY_H
 #include <limits>
@@ -6,15 +7,15 @@
 #include "core.h"
 
 
-void clean_cin(){
+inline void clean_cin(){
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
-#define nl std::numeric_limits
+
 template<typename T>
     requires std::is_arithmetic_v<T>
-void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min(),T maximum = nl<T>::max()){
+inline void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min(),T maximum = nl<T>::max()){
     std::cout << prefix;
     T temporary{};
     while(true){
@@ -34,7 +35,7 @@ void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min()
     x = temporary;
 }
 
-void print_addresses(std::vector<ScannedObject>& list){
+inline  void print_addresses(std::vector<ScannedObject>& list){
 
     int print_count{};
     std::cout << "\n--------------------------------------------\n";

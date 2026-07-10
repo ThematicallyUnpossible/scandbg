@@ -9,7 +9,9 @@ add_executable(scandbg main.cpp
     main.cpp
     core.h
     core.cpp
-    utility.h)
+    utility.h
+    core_helper.h
+)
 
 include(GNUInstallDirs)
 install(TARGETS scandbg

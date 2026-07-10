@@ -9,6 +9,8 @@
 #include <fstream>
 #include <cstring>
 
+#include "utility.h"
+
 ProcessDebugger::ProcessDebugger(int pid_int, std::string pid_string):
     m_pid_int{pid_int},
     m_pid_string{pid_string}{}
@@ -163,6 +165,29 @@ std::optional<std::vector<ScannedObject>>  ProcessDebugger::scan_captured(const 
     return temporary;
 }
 
+template <typename T>
+    requires std::is_arithmetic_v<T>
+bool ProcessDebugger::write_value(unsigned long long selected_address_ull, T overwrite_with ){
+
+    struct iovec local_write_region {
+        .iov_base = &overwrite_with,
+        .iov_len = sizeof(overwrite_with)
+    };
+    struct iovec remote_write_region{
+        .iov_base = reinterpret_cast<void*>(selected_address_ull),
+        .iov_len = sizeof(overwrite_with)
+    };
+
+    ssize_t bytes_written = process_vm_writev(m_pid_int, &local_write_region, 1, &remote_write_region, 1, 0);
+    if(bytes_written == -1){
+        return false;
+        // std::cerr << "[!] failed to write at address. continuing anyway";
+    }else{
+        // std::cout << "[*] succesfulyl written";
+        return true;
+    }
+}
+
 
 //explicitly instantiating the types
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_value<int>(const std::vector<AddressContainer>&, int);
@@ -172,3 +197,7 @@ template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_value<d
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_captured<int>(const std::vector<ScannedObject>&, int);
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_captured<float>(const std::vector<ScannedObject>&, float);
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_captured<double>(const std::vector<ScannedObject>&, double);
+
+template bool ProcessDebugger::write_value<int>( unsigned long long selected_address_ull, int overwrite_with);
+template bool ProcessDebugger::write_value<float>(unsigned long long selected_address_ull, float overwrite_with);
+template bool ProcessDebugger::write_value<double>( unsigned long long selected_address_ull, double overwrite_with);
