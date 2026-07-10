@@ -20,8 +20,8 @@ const std::string G_action_list = "---------------------------\n"
                             "[5] capture last scanned addresses\n"
                             "[6] print current address buffer"
                             "\n---------------------------";
-#define MINIMUM_ACTION 1
-#define MAXIMUM_ACTION 8
+constexpr int G_MINIMUM_ACTION = 1;
+constexpr int MAXIMUM_ACTION = 8;
 
 
 
@@ -51,7 +51,7 @@ int main(int argc, const char* argv[]){
 
     while(true){
         std::cout << "\n" << G_action_list << "\n";
-        prompt_mutate_unified<int>(current_action_choice, "[?] type your n choice : ", MINIMUM_ACTION, MAXIMUM_ACTION);
+        prompt_mutate_unified<int>(current_action_choice, "[?] type your n choice : ", G_MINIMUM_ACTION, MAXIMUM_ACTION);
         if(current_action_choice == 1){
 
             std::cout <<  "[1] int "

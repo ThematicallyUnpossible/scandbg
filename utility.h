@@ -1,4 +1,3 @@
-#define nl std::numeric_limits
 #ifndef UTILITY_H
 #define UTILITY_H
 #include <limits>
@@ -12,7 +11,7 @@ inline void clean_cin(){
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
-
+#define nl std::numeric_limits
 template<typename T>
     requires std::is_arithmetic_v<T>
 inline void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>::min(),T maximum = nl<T>::max()){
