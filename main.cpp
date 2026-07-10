@@ -24,7 +24,6 @@ constexpr int G_MINIMUM_ACTION = 1;
 constexpr int MAXIMUM_ACTION = 8;
 
 
-
 int main(int argc, const char* argv[]){
     std::cout << "\n";
     if(argc != 2){
@@ -89,7 +88,9 @@ int main(int argc, const char* argv[]){
             }
             else if(type_choice  == 3){
                 helper_scan_captured<double>(system_object, capture_buffer, address_buffer);
+            }
         }
+
         else if(current_action_choice == 3){
             clean_cin();
             std::cout << "[?] type the address which value you want to overwrite : ";
@@ -154,5 +155,4 @@ int main(int argc, const char* argv[]){
     }
 
     return 0;
-    }
 }
