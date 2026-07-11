@@ -34,7 +34,7 @@ inline void prompt_mutate_unified(T& x,std::string_view prefix,T minimum = nl<T>
     x = temporary;
 }
 
-inline  void print_addresses(std::vector<ScannedObject>& list){
+inline void print_addresses(std::vector<ScannedObject>& list){
 
     int print_count{};
     std::cout << "\n--------------------------------------------\n";

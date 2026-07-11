@@ -7,7 +7,7 @@ template <typename T>
 void helper_scan_value(std::optional<ProcessDebugger>& system_object, std::optional<std::vector<AddressContainer>>&  valid_address_list, std::optional<std::vector<ScannedObject>>& address_buffer){
     T value_to_find{};
     prompt_mutate_unified<T>(value_to_find, "[?] type the value to be scanned : ");
-    address_buffer = system_object.value().scan_value<T>(valid_address_list.value(), value_to_find);
+    address_buffer = system_object.value().multithread_scan_value<T>(valid_address_list.value(), value_to_find);
     if(!address_buffer || address_buffer.value().empty()){
         std::cout << "[x] no value found.\n";
         return;
