@@ -53,7 +53,7 @@ public:
     bool write_value(unsigned long long selected_address_ull, T overwrite_with);
 
     template  <typename T>
-        requires  std::is_arithmetic_v<T>
+        requires std::is_arithmetic_v<T>
     std::optional<std::vector<ScannedObject>> multithread_scan_value(const std::vector<AddressContainer>& valid_address_container, T value_to_find);
 };
 

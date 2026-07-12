@@ -297,7 +297,6 @@ template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_value<i
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_value<float>(const std::vector<AddressContainer>&, float);
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_value<double>(const std::vector<AddressContainer>&, double);
 
-
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_captured<int>(const std::vector<ScannedObject>&, int);
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_captured<float>(const std::vector<ScannedObject>&, float);
 template std::optional<std::vector<ScannedObject>> ProcessDebugger::scan_captured<double>(const std::vector<ScannedObject>&, double);
